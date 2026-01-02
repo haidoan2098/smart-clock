@@ -52,7 +52,6 @@ volatile uint8_t dataReady = 0;
 /* =====================================================
   HÀM
 ===================================================== */
-void SystemClock_Config(void);
 void GPIO_LED_Init(void);
 void UART1_Init(void);
 void USART1_IRQHandler(void);
@@ -63,7 +62,6 @@ void delay_ms(uint32_t ms);
 ===================================================== */
 int main(void)
 {
-    SystemClock_Config();
     GPIO_LED_Init();
     UART1_Init();
 
@@ -82,27 +80,6 @@ int main(void)
             GPIOC_BSRR = (1 << (14 + 16));
         }
     }
-}
-
-/* =====================================================
-   CLOCK CONFIG (72MHz)
-===================================================== */
-void SystemClock_Config(void)
-{
-    RCC_CR |= (1 << 16);
-    while (!(RCC_CR & (1 << 17)));
-
-    RCC_CFGR |= (1 << 16);
-    RCC_CFGR &= ~(0xF << 18);
-    RCC_CFGR |= (7 << 18);
-
-    RCC_CR |= (1 << 24);
-    while (!(RCC_CR & (1 << 25)));
-
-    FLASH_ACR |= (2 << 0);
-
-    RCC_CFGR |= (2 << 0);
-    while (((RCC_CFGR >> 2) & 3) != 2);
 }
 
 /* =====================================================
@@ -134,7 +111,7 @@ void UART1_Init(void)
     GPIOA_CRH &= ~(0xF << 8);
     GPIOA_CRH |=  (0x4 << 8);
 
-    USART1_BRR = 72000000 / 115200;
+    USART1_BRR = 8000000 / 115200;      // 8MHz
 
     USART1_CR1 |= USART_CR1_RE | USART_CR1_RXNEIE;
     USART1_CR1 |= USART_CR1_UE;
