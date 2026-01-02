@@ -2,8 +2,8 @@
 #include <time.h>
 
 /* ====== WIFI ====== */
-const char *ssid = "TRONG MY";
-const char *password = "0702507253";
+const char *ssid = "Doan Lien";
+const char *password = "hoibevydo";
 
 /* ====== NTP  ====== */
 const char *ntpServer = "pool.ntp.org";
@@ -16,13 +16,13 @@ const int daylightOffset_sec = 0;
 HardwareSerial uart(2);
 
 /* ====== BUTTON ====== */
-#define BUTTON_PIN 0 // hiện tại đang dùng nút boot
+#define BUTTON_PIN 0 // Nút BOOT trên ESP32
 
 /* ====== GLOBAL ====== */
 struct tm timeinfo;
-char timeBuffer[30];
+char timeBuffer[10]; // Giảm kích thước buffer vì chuỗi ngắn hơn (8 ký tự + null)
 
-/* ====== hàm ====== */
+/* ====== PROTOTYPES ====== */
 void syncTimeAndSendUART();
 void connectWiFi();
 void formatTimeString();
@@ -36,7 +36,7 @@ void setup()
 
   Serial.println("================================");
   Serial.println("ESP32 START");
-  Serial.println("Nhấn nút để đồng bộ ");
+  Serial.println("Nhấn nút BOOT (GPIO 0) để đồng bộ thời gian");
   Serial.println("================================");
 }
 
@@ -44,12 +44,12 @@ void loop()
 {
   if (digitalRead(BUTTON_PIN) == LOW)
   {
-    delay(200); // chống dội nút
+    delay(200); // Chống dội nút
 
-    Serial.println("\nNút đã được nhấn");
+    Serial.println("\n[Button] Nút đã được nhấn");
     syncTimeAndSendUART();
 
-    // chờ nhả nút
+    // Chờ nhả nút để không gửi liên tục
     while (digitalRead(BUTTON_PIN) == LOW)
       ;
   }
@@ -61,59 +61,81 @@ void syncTimeAndSendUART()
   connectWiFi();
 
   Serial.println("[NTP] Đang lấy thời gian...");
-  if (!getLocalTime(&timeinfo))
+  // Thử lấy thời gian tối đa 3 lần nếu thất bại
+  int retry = 0;
+  while (!getLocalTime(&timeinfo) && retry < 3)
   {
-    Serial.println("[Lỗi] không láy được thời gian");
+    Serial.println("[Retry] Đang thử lại...");
+    retry++;
+    delay(1000);
+  }
+
+  if (retry >= 3)
+  {
+    Serial.println("[Lỗi] Không lấy được thời gian từ NTP");
+    WiFi.disconnect(true);
+    WiFi.mode(WIFI_OFF);
     return;
   }
 
   Serial.println("[NTP] Đồng bộ thời gian thành công");
 
+  // Format chỉ lấy Giờ:Phút:Giây
   formatTimeString();
 
-  Serial.print("[FORMAT] Chuỗi = ");
+  Serial.print("[FORMAT] Chuỗi gửi đi = ");
   Serial.println(timeBuffer);
 
+  // Gửi qua UART cho STM32
   uart.print(timeBuffer);
-  uart.print("\n");
+  uart.print("\n"); // Ký tự kết thúc chuỗi
 
   Serial.println("[UART] Gửi thành công");
 
+  // Ngắt WiFi để tiết kiệm năng lượng
   WiFi.disconnect(true);
   WiFi.mode(WIFI_OFF);
   Serial.println("[WiFi] Disconnected");
 }
 
-/* ==== kết nối wifi ====== */
+/* ==== KẾT NỐI WIFI ====== */
 void connectWiFi()
 {
-  Serial.print("[WiFi] Đang kết nối");
+  if (WiFi.status() == WL_CONNECTED)
+    return;
 
+  Serial.print("[WiFi] Đang kết nối");
   WiFi.mode(WIFI_STA);
   WiFi.begin(ssid, password);
 
+  int timeout = 0;
   while (WiFi.status() != WL_CONNECTED)
   {
     delay(500);
     Serial.print(".");
+    timeout++;
+    if (timeout > 20)
+    { // Timeout sau 10s
+      Serial.println("\n[WiFi] Kết nối thất bại (Timeout)");
+      return;
+    }
   }
 
   Serial.println("\n[WiFi] Kết nối thành công");
+  Serial.print("IP: ");
   Serial.println(WiFi.localIP());
-
   configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
 }
 
-/* ====== Định dạng chuỗi ====== */
+/* ====== ĐỊNH DẠNG CHUỖI (CHỈ GIỜ) ====== */
 void formatTimeString()
 {
-  // VD: 16:00:00 25-12-2025
+  // Chỉ lấy Giờ:Phút:Giây
+  // VD: 16:05:30
+  // %02d đảm bảo luôn có 2 chữ số (vd: 5 -> 05)
   sprintf(timeBuffer,
-          "%02d:%02d:%02d %02d-%02d-%04d",
+          "%02d:%02d:%02d",
           timeinfo.tm_hour,
           timeinfo.tm_min,
-          timeinfo.tm_sec,
-          timeinfo.tm_mday,
-          timeinfo.tm_mon + 1,
-          timeinfo.tm_year + 1900);
+          timeinfo.tm_sec);
 }
