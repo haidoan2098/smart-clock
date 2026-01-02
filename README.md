@@ -8,6 +8,7 @@ The **ESP32** connects to the Internet to synchronize time from an **NTP server*
 All peripherals on the STM32 are implemented using **register-level programming**, providing a deeper understanding of low-level hardware control and communication protocols.
 
 ## Authors
-- Doan Phu Hai (@haidoan2098)  
-- Doan Trong My (@mnbpasd1)  
-- Nguyen Minh Anh Tu (@tus0810)
+- Doan Phu Hai ([@haidoan2098](https://github.com/haidoan2098))
+- Doan Trong My ([@mnbpasd1](https://github.com/mnbpasd1))
+- Nguyen Minh Anh Tu ([@tus0810](https://github.com/tus0810))
+
